@@ -25,24 +25,18 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         self._key = None
     
     def _create_connection_window(self) -> None:
-        with dpg.window(label="Password", pos=(200, 150), width=400, height=300, show=False, tag="connection_windows"):
-            
+        with dpg.window(label="Connection", pos=(200, 150), width=400, height=300, show=False, tag="connection_windows"):
             for field in ["host", "port", "name", "password"]:
                 with dpg.group(horizontal=True):
                     if field == "password":
                         dpg.add_text(field)
-                        dpg.add_input_text(default_value=DEFAULT_VALUES[field], password=True)
+                        dpg.add_input_text(default_value=DEFAULT_VALUES[field], tag=f"connection_{field}",password=True)
                         break
                     dpg.add_text(field)
-                    dpg.add_input_text(default_value=DEFAULT_VALUES[field])
-                    
-                    
-            
-            dpg.add_button(label="Connect", callback=self.run_chat)
-            dpg.add_button(label="Validate", callback=self.run_chat)
-            
+                    dpg.add_input_text(default_value=DEFAULT_VALUES[field],tag=f"connection_{field}")
         
-       
+            dpg.add_button(label="Connect", callback=self.run_chat)
+
 
     def _create_chat_window(self)->None:
         # chat windows
@@ -87,14 +81,33 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # callback used by the menu to display connection windows
         dpg.show_item("connection_windows")
 
+    def encrypt(self,message):
+        message = bytes(message, "utf8") 
+        salt = bytes("16", "utf8")
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(self._key)) #message should be the self._password to generate the key
+        f = Fernet(key)
+        encrypted = f.encrypt(message)
+        iv = os.urandom(16)
+        return (iv, encrypted)
+    
+    def decrypt(self,iv,encrypted):
+        f = Fernet(self._key) #key should be the self._password to generate the key
+        return f.decrypt(encrypted)
+
     def run_chat(self, sender, app_data)->None:
         # callback used by the connection windows to start a chat session
         host = dpg.get_value("connection_host")
-        port = int(dpg.get_value("connection_port"))
+        port = dpg.get_value("connection_port")
         name = dpg.get_value("connection_name")
         password = dpg.get_value("connection_password")
-        self._log.info(f"Connecting {name}@{host}:{port}")
-
+        self._log.info(f"Connecting {name}@{host}:{port}@{password}")
+        self._key = bytes(password, "utf8")
         self._callback = GenericCallback()
 
         self._client = ChatClient(host, port)
