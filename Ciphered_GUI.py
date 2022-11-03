@@ -53,7 +53,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # menu (file->connect)
         with dpg.viewport_menu_bar():
             with dpg.menu(label="File"):
-                dpg.add_menu_item(label="Connect", callback=self.connect)
+                dpg.add_menu_item(label="Connect using AES encryption", callback=self.connect)
             
     def create(self):
         # create the context and all windows
@@ -63,7 +63,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         self._create_connection_window()
         self._create_menu()        
             
-        dpg.create_viewport(title='Secure chat - or not', width=800, height=600)
+        dpg.create_viewport(title='Secure AES encrypted chat', width=800, height=600)
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
@@ -101,8 +101,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         decryptor = cipher.decryptor()
         unpadder = padding.PKCS7(128).unpadder()
         ct = unpadder.update(decryptor.update(ct) + decryptor.finalize()) + unpadder.finalize()
-        self._log.info(f"The encrypted cipher is {ct}")
-        
+        self._log.info(f"The encrypted cipher is {ct}") 
         return ct
 
     def run_chat(self, sender, app_data)->None:
@@ -146,7 +145,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
                 
                 message_decrypt = self.decrypt(iv,ct)
                 self._log.info(f"Receiving {message}@{message_decrypt}")
-                self.update_text_screen(f"{user} : {message_decrypt}")
+                self.update_text_screen(f"{user} : {message_decrypt[2:-1]}")
             self._callback.clear()
 
     def send(self, text)->None:

@@ -8,8 +8,10 @@ import base64
 import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC 
 import serpent
+
+
 DEFAULT_VALUES = {
     "host" : "127.0.0.1",
     "port" : "6666",
@@ -50,7 +52,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # menu (file->connect)
         with dpg.viewport_menu_bar():
             with dpg.menu(label="File"):
-                dpg.add_menu_item(label="Connect", callback=self.connect)
+                dpg.add_menu_item(label="Connect using Fernel encryption", callback=self.connect)
             
     def create(self):
         # create the context and all windows
@@ -60,7 +62,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         self._create_connection_window()
         self._create_menu()        
             
-        dpg.create_viewport(title='Secure chat - or not', width=800, height=600)
+        dpg.create_viewport(title='Secure Fernet encrypted chat', width=800, height=600)
         dpg.setup_dearpygui()
         dpg.show_viewport()
 
@@ -101,14 +103,20 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         password = dpg.get_value("connection_password")
         self._log.info(f"Connecting {name}@{host}:{port}@{password}")
         salt = bytes("16", "utf8")
-        kdf = PBKDF2HMAC(
+        """kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
             iterations=100000,
         )
-        password = bytes(password, "utf8")
-        self._key = base64.urlsafe_b64encode(kdf.derive(bytes(password))) 
+        self._key = base64.b64encode(kdf.derive(bytes(password))) """
+        # use sha256.digest + base64 to get a 32 bytes key
+        
+        self._key = base64.b64encode(hashlib.sha256(bytes(password, "utf8")).digest())
+        
+
+        
+        
         self._callback = GenericCallback()
 
         self._client = ChatClient(host, port)
@@ -131,7 +139,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
             for user, message in self._callback.get():
                 message_decrypt = self.decrypt(message[0],message[1])
                 self._log.info(f"Receiving {message}@{message_decrypt}")
-                self.update_text_screen(f"{user} : {message_decrypt}")
+                self.update_text_screen(f"{user} : {message_decrypt[2:-1]}")
             self._callback.clear()
 
     def send(self, text)->None:
