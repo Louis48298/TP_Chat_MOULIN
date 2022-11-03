@@ -16,11 +16,11 @@ kdf = PBKDF2HMAC(
 )
 key = base64.urlsafe_b64encode(kdf.derive(password))
 f = Fernet(key)
-token = f.encrypt(b"Secret message!")
+token = f.encrypt(b"Secret password!")
 print(key)
 print(f.decrypt(token))"""
-def encrypt(message):
-        message = bytes(message, "utf8") 
+def encrypt(password):
+        password = bytes(password, "utf8") 
         salt = bytes("16", "utf8")
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -28,13 +28,18 @@ def encrypt(message):
             salt=salt,
             iterations=100000,
         )
-        key = base64.urlsafe_b64encode(kdf.derive(message))
+        key = base64.urlsafe_b64encode(kdf.derive(password))
         f = Fernet(key)
-        token = f.encrypt(b"Secret message!")
+        token = f.encrypt(b"Secret password!")
         iv = os.urandom(16)
-        return (iv, token)
+        return (iv, token, key)
 
-
-print(encrypt("test"))
+def decrypt(token, key):
+        f = Fernet(key)
+        return f.decrypt(token)
         
+print(encrypt("test"))
+print(decrypt(encrypt("test")[1], encrypt("test")[2]))
+
+     
     
