@@ -82,16 +82,8 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         dpg.show_item("connection_windows")
 
     def encrypt(self,message):
-        message = bytes(message, "utf8") 
-        salt = bytes("16", "utf8")
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(self._key)) #message should be the self._password to generate the key
-        f = Fernet(key)
+        message = bytes(message, "utf8")  
+        f = Fernet(self._key)
         encrypted = f.encrypt(message)
         iv = os.urandom(16)
         return (iv, encrypted)
@@ -104,11 +96,19 @@ class Ciphered_GUI(basic_gui.BasicGUI):
     def run_chat(self, sender, app_data)->None:
         # callback used by the connection windows to start a chat session
         host = dpg.get_value("connection_host")
-        port = dpg.get_value("connection_port")
+        port = int(dpg.get_value("connection_port"))
         name = dpg.get_value("connection_name")
         password = dpg.get_value("connection_password")
         self._log.info(f"Connecting {name}@{host}:{port}@{password}")
-        self._key = bytes(password, "utf8")
+        salt = bytes("16", "utf8")
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        password = bytes(password, "utf8")
+        self._key = base64.urlsafe_b64encode(kdf.derive(bytes(password))) 
         self._callback = GenericCallback()
 
         self._client = ChatClient(host, port)
