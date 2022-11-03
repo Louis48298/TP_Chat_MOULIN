@@ -18,7 +18,7 @@ DEFAULT_VALUES = {
     "name" : "foo",
     "password" : ""
 }
-class Ciphered_GUI(basic_gui.BasicGUI):
+class Fernet_GUI(basic_gui.BasicGUI):
     def __init__(self)->None:
         # constructor
         self._client = None
@@ -88,7 +88,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         f = Fernet(self._key)
         encrypted = f.encrypt(message)
         iv = os.urandom(16)
-        return (iv, encrypted)
+        return encrypted
     
     def decrypt(self,iv,encrypted):
         f = Fernet(self._key) 
@@ -111,7 +111,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         )
         self._key = base64.b64encode(kdf.derive(bytes(password))) """
         # use sha256.digest + base64 to get a 32 bytes key
-        
+
         self._key = base64.b64encode(hashlib.sha256(bytes(password, "utf8")).digest())
         
 
@@ -137,9 +137,9 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # function called to get incoming messages and display them
         if self._callback is not None:
             for user, message in self._callback.get():
-                message_decrypt = self.decrypt(message[0],message[1])
+                message_decrypt = self.decrypt(message)
                 self._log.info(f"Receiving {message}@{message_decrypt}")
-                self.update_text_screen(f"{user} : {message_decrypt[2:-1]}")
+                self.update_text_screen(f"{user} : {message_decrypt}")
             self._callback.clear()
 
     def send(self, text)->None:
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     # instanciate the class, create context and related stuff, run the main loop
-    client = Ciphered_GUI()
+    client = Fernet_GUI()
     client.create()
     client.loop()
     
