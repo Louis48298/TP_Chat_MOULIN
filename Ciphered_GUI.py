@@ -6,10 +6,13 @@ from chat_client import ChatClient
 from generic_callback import GenericCallback
 import base64
 import os
+from cryptography.hazmat.primitives import padding
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import serpent
+
 DEFAULT_VALUES = {
     "host" : "127.0.0.1",
     "port" : "6666",
@@ -83,15 +86,24 @@ class Ciphered_GUI(basic_gui.BasicGUI):
 
     def encrypt(self,message):
         message = bytes(message, "utf8")  
-        f = Fernet(self._key)
-        encrypted = f.encrypt(message)
         iv = os.urandom(16)
-        return (iv, encrypted)
+        cipher = Cipher(algorithms.AES(self._key), modes.CBC(iv))
+        encryptor = cipher.encryptor()
+        padder = padding.PKCS7(128).padder()
+        padded_data = padder.update(message) + padder.finalize()
+        ct = encryptor.update(padded_data) + encryptor.finalize()
+        self._log.info(f"The encrypted cipher is {ct}")
+        return (iv,ct)
+        
     
-    def decrypt(self,iv,encrypted):
-        f = Fernet(self._key) 
-        decrypted = serpent.tobytes(encrypted)
-        return f.decrypt(decrypted)
+    def decrypt(self,iv,ct):
+        cipher = Cipher(algorithms.AES(self._key), modes.CBC(iv))
+        decryptor = cipher.decryptor()
+        unpadder = padding.PKCS7(128).unpadder()
+        ct = unpadder.update(decryptor.update(ct) + decryptor.finalize()) + unpadder.finalize()
+        self._log.info(f"The encrypted cipher is {ct}")
+        
+        return ct
 
     def run_chat(self, sender, app_data)->None:
         # callback used by the connection windows to start a chat session
@@ -108,7 +120,7 @@ class Ciphered_GUI(basic_gui.BasicGUI):
             iterations=100000,
         )
         password = bytes(password, "utf8")
-        self._key = base64.urlsafe_b64encode(kdf.derive(bytes(password))) 
+        self._key = kdf.derive(bytes(password))
         self._callback = GenericCallback()
 
         self._client = ChatClient(host, port)
@@ -128,9 +140,11 @@ class Ciphered_GUI(basic_gui.BasicGUI):
     def recv(self)->None:
         # function called to get incoming messages and display them
         if self._callback is not None:
-            for user, message in self._callback.get():
+            for user, message in self._callback.get():  
+                iv = serpent.tobytes(message[0])
+                ct = serpent.tobytes(message[1])
                 
-                message_decrypt = self.decrypt(message[0],message[1])
+                message_decrypt = self.decrypt(iv,ct)
                 self._log.info(f"Receiving {message}@{message_decrypt}")
                 self.update_text_screen(f"{user} : {message_decrypt}")
             self._callback.clear()
