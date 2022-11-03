@@ -1,28 +1,48 @@
+import basic_gui
 import logging
-
 import dearpygui.dearpygui as dpg
-
+import hashlib
 from chat_client import ChatClient
 from generic_callback import GenericCallback
+import base64
+import os
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# default values used to populate connection window
 DEFAULT_VALUES = {
     "host" : "127.0.0.1",
     "port" : "6666",
-    "name" : "foo"
+    "name" : "foo",
+    "password" : ""
 }
-
-class BasicGUI:
-    """
-    GUI for a chat client. Not so secured.
-    """
+class Ciphered_GUI(basic_gui.BasicGUI):
     def __init__(self)->None:
         # constructor
         self._client = None
         self._callback = None
         self._log = logging.getLogger(self.__class__.__name__)
-        self._key =None
-
+        self._key = None
+    
+    def _create_connection_window(self) -> None:
+        with dpg.window(label="Password", pos=(200, 150), width=400, height=300, show=False, tag="connection_windows"):
+            
+            for field in ["host", "port", "name", "password"]:
+                with dpg.group(horizontal=True):
+                    if field == "password":
+                        dpg.add_text(field)
+                        dpg.add_input_text(default_value=DEFAULT_VALUES[field], password=True)
+                        break
+                    dpg.add_text(field)
+                    dpg.add_input_text(default_value=DEFAULT_VALUES[field])
+                    
+                    
+            
+            dpg.add_button(label="Connect", callback=self.run_chat)
+            dpg.add_button(label="Validate", callback=self.run_chat)
+            
+        
+       
 
     def _create_chat_window(self)->None:
         # chat windows
@@ -30,25 +50,14 @@ class BasicGUI:
         with dpg.window(label="Chat", pos=(0, 0), width=800, height=600, show=False, tag="chat_windows", on_close=self.on_close):
             dpg.add_input_text(default_value="Readonly\n\n\n\n\n\n\n\nfff", multiline=True, readonly=True, tag="screen", width=790, height=525)
             dpg.add_input_text(default_value="some text", tag="input", on_enter=True, callback=self.text_callback, width=790)
-            dpg.add_input_text(default_value="Mot de pass", tag="input", on_enter=True, callback=self.text_callback, width=790)
 
-    def _create_connection_window(self)->None:
-        # windows about connexion
-        with dpg.window(label="Connection", pos=(200, 150), width=400, height=300, show=False, tag="connection_windows"):
-            
-            for field in ["host", "port", "name"]:
-                with dpg.group(horizontal=True):
-                    dpg.add_text(field)
-                    dpg.add_input_text(default_value=DEFAULT_VALUES[field], tag=f"connection_{field}")
-
-            dpg.add_button(label="Connect", callback=self.run_chat)
 
     def _create_menu(self)->None:
         # menu (file->connect)
         with dpg.viewport_menu_bar():
             with dpg.menu(label="File"):
                 dpg.add_menu_item(label="Connect", callback=self.connect)
-
+            
     def create(self):
         # create the context and all windows
         dpg.create_context()
@@ -83,6 +92,7 @@ class BasicGUI:
         host = dpg.get_value("connection_host")
         port = int(dpg.get_value("connection_port"))
         name = dpg.get_value("connection_name")
+        password = dpg.get_value("connection_password")
         self._log.info(f"Connecting {name}@{host}:{port}")
 
         self._callback = GenericCallback()
@@ -124,6 +134,11 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     # instanciate the class, create context and related stuff, run the main loop
-    client = BasicGUI()
+    client = Ciphered_GUI()
     client.create()
     client.loop()
+    
+
+    
+
+
