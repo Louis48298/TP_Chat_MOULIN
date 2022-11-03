@@ -9,7 +9,7 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
+import serpent
 DEFAULT_VALUES = {
     "host" : "127.0.0.1",
     "port" : "6666",
@@ -42,8 +42,8 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # chat windows
         # known bug : the add_input_text do not display message in a user friendly way
         with dpg.window(label="Chat", pos=(0, 0), width=800, height=600, show=False, tag="chat_windows", on_close=self.on_close):
-            dpg.add_input_text(default_value="Readonly\n\n\n\n\n\n\n\nfff", multiline=True, readonly=True, tag="screen", width=790, height=525)
-            dpg.add_input_text(default_value="some text", tag="input", on_enter=True, callback=self.text_callback, width=790)
+            dpg.add_input_text(default_value="Readonly\n\n\n\n\n\n\n\nfff", multiline=True, readonly=True, tag="screen", width=400, height=300)
+            dpg.add_input_text(default_value="some text", tag="input", on_enter=True, callback=self.text_callback, width=400)
 
 
     def _create_menu(self)->None:
@@ -97,8 +97,9 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         return (iv, encrypted)
     
     def decrypt(self,iv,encrypted):
-        f = Fernet(self._key) #key should be the self._password to generate the key
-        return f.decrypt(encrypted)
+        f = Fernet(self._key) 
+        decrypted = serpent.tobytes(encrypted)
+        return f.decrypt(decrypted)
 
     def run_chat(self, sender, app_data)->None:
         # callback used by the connection windows to start a chat session
@@ -128,19 +129,23 @@ class Ciphered_GUI(basic_gui.BasicGUI):
         # function called to get incoming messages and display them
         if self._callback is not None:
             for user, message in self._callback.get():
-                self.update_text_screen(f"{user} : {message}")
+                
+                message_decrypt = self.decrypt(message[0],message[1])
+                self._log.info(f"Receiving {message}@{message_decrypt}")
+                self.update_text_screen(f"{user} : {message_decrypt}")
             self._callback.clear()
 
     def send(self, text)->None:
         # function called to send a message to all (broadcasting)
-        self._client.send_message(text)
+        encrypted = self.encrypt(text)
+        self._log.info(f"Sending {text}@{encrypted}")
+        self._client.send_message(encrypted)
 
     def loop(self):
         # main loop
         while dpg.is_dearpygui_running():
             self.recv()
             dpg.render_dearpygui_frame()
-
         dpg.destroy_context()
 
 if __name__ == "__main__":
